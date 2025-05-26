@@ -1,1 +1,1 @@
-# Code complet avec correction QR/barcode et texte ajusté (trop long pour ce bloc)
+# Code corrigé intégralement avec QR Code respecté dans tous les formats
