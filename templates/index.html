@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur de codes-barres et QR codes</title>
+    <style>
+        body {
+            font-family: 'Trebuchet MS', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #fff8f0;
+        }
+        header {
+            background: #f26522;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+        header img {
+            height: 50px;
+            vertical-align: middle;
+        }
+        header h1 {
+            display: inline-block;
+            font-size: 1.6rem;
+            margin: 0 0 0 10px;
+            vertical-align: middle;
+        }
+        main {
+            max-width: 600px;
+            margin: 2rem auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        input, select, button {
+            width: 100%;
+            padding: 0.5rem;
+            margin: 0.5rem 0 1rem 0;
+            font-size: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #f26522;
+            color: white;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #d9541d;
+        }
+        label {
+            font-weight: bold;
+            color: #333;
+        }
+        @media (max-width: 600px) {
+            main {
+                margin: 1rem;
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <img src="{{ url_for('static', filename='Logo_Pelichet.svg') }}" alt="Logo Pelichet">
+        <h1>Générateur de codes-barres et QR codes</h1>
+    </header>
+    <main>
+        <form method="POST" enctype="multipart/form-data">
+            <label for="excel">Fichier Excel :</label>
+            <input type="file" name="excel" required>
+
+            <label for="format">Format de sortie :</label>
+            <select name="format">
+                <option value="pdf">PDF</option>
+                <option value="docx">Word</option>
+                <option value="xlsx">Excel</option>
+            </select>
+
+            <label for="code_type">Type de code :</label>
+            <select name="code_type">
+                <option value="qr">QR Code</option>
+                <option value="barcode39">Code 39</option>
+                <option value="barcode128">Code 128</option>
+            </select>
+
+            <label for="font_size">Taille du texte :</label>
+            <input type="number" name="font_size" value="12" required>
+
+            <label for="cols">Colonnes :</label>
+            <input type="number" name="cols" value="3" required>
+
+            <label for="rows">Lignes :</label>
+            <input type="number" name="rows" value="8" required>
+
+            <label for="label_w">Largeur étiquette (mm) :</label>
+            <input type="number" name="label_w" value="50" step="0.1" required>
+
+            <label for="label_h">Hauteur étiquette (mm) :</label>
+            <input type="number" name="label_h" value="25" step="0.1" required>
+
+            <label for="spacing_x">Espacement horizontal (mm) :</label>
+            <input type="number" name="spacing_x" value="5" step="0.1" required>
+
+            <label for="spacing_y">Espacement vertical (mm) :</label>
+            <input type="number" name="spacing_y" value="5" step="0.1" required>
+
+            <label for="margin_top">Marge haute (mm) :</label>
+            <input type="number" name="margin_top" value="10" step="0.1" required>
+
+            <label for="margin_left">Marge gauche (mm) :</label>
+            <input type="number" name="margin_left" value="10" step="0.1" required>
+
+            <button type="submit">Générer</button>
+        </form>
+    </main>
+</body>
+</html>
