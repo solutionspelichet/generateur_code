@@ -1,150 +1,153 @@
 import streamlit as st
+from PIL import Image, ImageDraw, ImageFont
 import pandas as pd
-from PIL import Image
-import tempfile
-import os
-from datetime import datetime
-from io import BytesIO
+import qrcode
+from barcode import Code39, Code128
+from barcode.writer import ImageWriter
+import io
+import zipfile
+from docx import Document
+from docx.shared import Mm
+from openpyxl import Workbook
+from openpyxl.drawing.image import Image as XLImage
+from openpyxl.utils import get_column_letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
 
-# Importation des fonctions d'exportation et de génération de codes
-# Assurez-vous que ces fichiers (export_pdf.py, export_excel.py, export_to_word_with_page_break.py, generator.py)
-# sont présents dans le même répertoire que app.py sur Render.
-try:
-    from export_pdf import export_to_pdf
-    from export_excel import export_to_excel
-    from export_to_word_with_page_break import export_to_word
-    from generator import generate_qr_code_with_text, generate_code128_with_text, generate_code39_with_text
-except ImportError as e:
-    st.error(f"Erreur d'importation : Assurez-vous que tous les fichiers (export_pdf.py, export_excel.py, export_to_word_with_page_break.py, generator.py) sont présents. Détails : {e}")
-    st.stop() # Arrête l'exécution de l'application si les imports échouent.
+def mm_to_px(mm): return int(mm * 3.78)
+def mm_to_pt(mm): return mm * 2.8346
+def mm_to_excel_width(mm): return mm * 0.14
 
-
-st.set_page_config(page_title="Générateur d'Étiquettes Pelichet", layout="centered")
-
-# Logo
-# Utilisation de os.path.join et os.path.dirname(__file__) pour une meilleure portabilité
-# Assurez-vous que 'LOGO-PELICHET.jpg' est dans le même répertoire que app.py
-logo_path = os.path.join(os.path.dirname(__file__), "LOGO-PELICHET.jpg")
-if os.path.exists(logo_path):
-    st.image(logo_path, width=200)
-else:
-    st.warning("Le fichier logo 'LOGO-PELICHET.jpg' n'a pas été trouvé. Veuillez vous assurer qu'il est dans le même répertoire.")
-
-st.title("🎯 Générateur d'Étiquettes Pelichet")
-
-# Section de téléchargement de fichier
-uploaded_file = st.file_uploader("📁 Sélectionner un fichier Excel avec une colonne 'Code'", type=["xlsx"])
-
-# Options de format de sortie et de type de code
-col1, col2 = st.columns(2)
-format_output = col1.radio("📄 Format de sortie", ["PDF", "Word", "Excel"])
-code_type = col2.selectbox("🔠 Type de code", ["QR", "Code128", "Code39"])
-
-# Options de couleur
-col3, col4 = st.columns(2)
-code_color = col3.color_picker("🎨 Couleur du code", "#000000")
-text_color = col4.color_picker("🎨 Couleur du texte", "#000000")
-
-st.markdown("### 📐 Paramètres d'impression")
-
-# Paramètres de dimensions de l'étiquette
-col_a, col_b = st.columns(2)
-label_width = col_a.number_input("Largeur étiquette (mm)", 10, 300, 50)
-label_height = col_b.number_input("Hauteur étiquette (mm)", 10, 300, 40)
-
-# Paramètres d'espacement
-col_c, col_d = st.columns(2)
-spacing_x = col_c.number_input("Espacement horizontal (mm)", 0, 50, 0)
-spacing_y = col_d.number_input("Espacement vertical (mm)", 0, 50, 0)
-
-# Paramètres de marge
-col_e, col_f = st.columns(2)
-margin_top = col_e.number_input("Marge haut (mm)", 0, 50, 0)
-margin_left = col_f.number_input("Marge gauche (mm)", 0, 50, 0)
-
-# Paramètres de grille
-col_g, col_h = st.columns(2)
-cols = col_g.number_input("Nombre de colonnes", 1, 10, 3)
-rows = col_h.number_input("Nombre de lignes", 1, 30, 7)
-
-# Bouton de génération
-if uploaded_file and st.button("🚀 Générer les étiquettes"):
+def generate_image(data, code_type, font_size, width_px, height_px):
     try:
-        df = pd.read_excel(uploaded_file)
-    except Exception as e:
-        st.error(f"❌ Erreur lors de la lecture du fichier Excel. Veuillez vérifier le format. Détails : {e}")
-        df = None # S'assure que df est None en cas d'erreur
-
-    if df is not None:
-        if "Code" not in df.columns:
-            st.error("❌ Le fichier Excel doit contenir une colonne nommée 'Code'.")
-        elif df["Code"].empty:
-            st.warning("⚠️ La colonne 'Code' est vide. Aucune étiquette ne sera générée.")
+        if code_type == "QR Code":
+            qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M)
+            qr.add_data(data)
+            qr.make(fit=True)
+            code_img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+        elif code_type == "Code 128":
+            barcode = Code128(data, writer=ImageWriter())
+            output = io.BytesIO()
+            barcode.write(output, {"write_text": False})
+            code_img = Image.open(output).convert("RGB")
         else:
-            with st.spinner("Génération des images..."):
-                images = []
-                temp_files = []
-                try:
-                    for i, code in enumerate(df["Code"]):
-                        img = None
-                        # Convertir le code en chaîne de caractères pour éviter les erreurs de type
-                        code_str = str(code)
-                        if code_type == "QR":
-                            # Paramètres QR Code : (code, scale, code_color, text, text_size, text_color, border, label_width, label_height)
-                            img = generate_qr_code_with_text(code_str, 10, code_color, code_str, 20, text_color, 5, label_width, label_height)
-                        elif code_type == "Code128":
-                            # Paramètres Code128 : (code, height, code_color, label_width, label_height)
-                            img = generate_code128_with_text(code_str, 50, code_color, label_width, label_height)
-                        else: # Code39
-                            # Paramètres Code39 : (code, height, code_color, label_width, label_height)
-                            img = generate_code39_with_text(code_str, 50, code_color, label_width, label_height)
+            barcode = Code39(data, writer=ImageWriter(), add_checksum=False)
+            output = io.BytesIO()
+            barcode.write(output, {"write_text": False})
+            code_img = Image.open(output).convert("RGB")
 
-                        if img:
-                            tmp_path = os.path.join(tempfile.gettempdir(), f"etiquette_{i}.png")
-                            img.save(tmp_path, format="PNG")
-                            images.append(tmp_path)
-                            temp_files.append(tmp_path)
-                        else:
-                            st.warning(f"Impossible de générer l'image pour le code : {code_str}. Le code sera ignoré.")
+        try:
+            font = ImageFont.truetype("arial.ttf", font_size)
+        except:
+            font = ImageFont.load_default()
 
-                    if not images:
-                        st.warning("Aucune image n'a pu être générée. Veuillez vérifier vos données et paramètres.")
-                    else:
-                        now = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        filename = f"etiquettes_{code_type}_{now}.{ 'pdf' if format_output == 'PDF' else 'docx' if format_output == 'Word' else 'xlsx' }"
+        draw_tmp = ImageDraw.Draw(Image.new("RGB", (1, 1)))
+        bbox = draw_tmp.textbbox((0, 0), data, font=font)
+        text_width, text_height = bbox[2] - bbox[0], bbox[3] - bbox[1]
 
-                        # Utilisation d'un bloc try-finally pour s'assurer que les fichiers temporaires sont nettoyés
-                        # même en cas d'erreur d'exportation.
-                        with tempfile.TemporaryDirectory() as tmpdir:
-                            outpath = os.path.join(tmpdir, filename)
-                            try:
-                                if format_output == "PDF":
-                                    export_to_pdf(images, outpath, cols, rows, label_width, label_height, spacing_x, spacing_y, margin_top, margin_left)
-                                elif format_output == "Excel":
-                                    # Pour l'export Excel, nous passons le DataFrame directement.
-                                    # Assurez-vous que export_excel.py gère la génération d'images ou l'intégration
-                                    # des codes-barres directement dans le fichier Excel sans passer par les images temporaires
-                                    # si c'est plus efficace. Sinon, il utilisera les images générées.
-                                    export_to_excel(df, outpath, code_type, 50, code_color, label_width, label_height)
-                                else: # Word
-                                    export_to_word(images, outpath, cols, rows, label_width, label_height, spacing_x, spacing_y, margin_top, margin_left)
+        text_img = Image.new("RGB", (width_px, text_height + 10), "white")
+        draw = ImageDraw.Draw(text_img)
+        draw.text(((width_px - text_width) // 2, 5), data, fill="black", font=font)
 
-                                with open(outpath, "rb") as f:
-                                    st.success("✅ Fichier généré avec succès")
-                                    st.download_button("📥 Télécharger le fichier", f.read(), file_name=filename, mime="application/octet-stream")
-                            except Exception as e:
-                                st.error(f"❌ Erreur lors de l'exportation du fichier {format_output}. Détails : {e}")
-                            finally:
-                                # Nettoyage des fichiers temporaires après l'exportation
-                                for f in temp_files:
-                                    if os.path.exists(f):
-                                        try:
-                                            os.remove(f)
-                                        except OSError as e:
-                                            st.warning(f"Impossible de supprimer le fichier temporaire {f}. Détails : {e}")
-                except Exception as e:
-                    st.error(f"❌ Une erreur inattendue s'est produite lors de la génération des images ou de l'exportation. Détails : {e}")
+        code_height = height_px - text_img.height
+        code_img = code_img.resize((width_px, code_height))
 
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+        final_img = Image.new("RGB", (width_px, height_px), "white")
+        final_img.paste(code_img, (0, 0))
+        final_img.paste(text_img, (0, code_height))
+        return final_img
+    except Exception as e:
+        st.error(f"Erreur de génération d'image : {e}")
+        return Image.new("RGB", (width_px, height_px), "red")
+
+def generate_excel(codes, code_type, font_size, label_w, label_h):
+    wb = Workbook()
+    ws = wb.active
+    width_px = mm_to_px(label_w)
+    height_px = mm_to_px(label_h)
+    col_letter = get_column_letter(1)
+    ws.column_dimensions[col_letter].width = mm_to_excel_width(label_w)
+
+    for i, code in enumerate(codes, start=1):
+        img = generate_image(code, code_type, font_size, width_px, height_px)
+        tmp = io.BytesIO()
+        img.save(tmp, format='PNG')
+        tmp.seek(0)
+        xl_img = XLImage(tmp)
+        ws.row_dimensions[i].height = mm_to_pt(label_h)
+        ws.add_image(xl_img, f"A{i}")
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output
+
+def generate_docx(codes, code_type, font_size, label_w, label_h):
+    doc = Document()
+    width_px = mm_to_px(label_w)
+    height_px = mm_to_px(label_h)
+    for code in codes:
+        img = generate_image(code, code_type, font_size, width_px, height_px)
+        tmp = io.BytesIO()
+        img.save(tmp, format='PNG')
+        tmp.seek(0)
+        doc.add_picture(tmp, width=Mm(label_w), height=Mm(label_h))
+        doc.add_paragraph("")
+    output = io.BytesIO()
+    doc.save(output)
+    output.seek(0)
+    return output
+
+def generate_pdf(codes, code_type, font_size, label_w, label_h):
+    output = io.BytesIO()
+    c = canvas.Canvas(output, pagesize=A4)
+    width_px = mm_to_px(label_w)
+    height_px = mm_to_px(label_h)
+    page_width, page_height = A4
+    x, y = 40, page_height - 100
+
+    for code in codes:
+        img = generate_image(code, code_type, font_size, width_px, height_px)
+        tmp = io.BytesIO()
+        img.save(tmp, format='PNG')
+        tmp.seek(0)
+        c.drawImage(tmp, x, y, width=mm_to_pt(label_w), height=mm_to_pt(label_h))
+        y -= mm_to_pt(label_h) + 10
+        if y < 100:
+            c.showPage()
+            y = page_height - 100
+
+    c.save()
+    output.seek(0)
+    return output
+
+# Interface Streamlit
+st.set_page_config(page_title="Générateur de codes-barres et QR codes", layout="centered")
+st.image("Logo_Pelichet.svg", width=150)
+st.markdown("<h1 style='text-align: center; color: #f26522; font-family: Trebuchet MS;'>Générateur de codes-barres et QR codes</h1>", unsafe_allow_html=True)
+st.markdown("---")
+
+with st.form("formulaire"):
+    uploaded_file = st.file_uploader("📄 Fichier Excel", type=["xlsx"])
+    format = st.selectbox("📂 Format de sortie", ["PDF", "Word", "Excel"])
+    code_type = st.selectbox("🔢 Type de code", ["QR Code", "Code 39", "Code 128"])
+    font_size = st.slider("✏️ Taille du texte", 6, 36, 12)
+    label_w = st.number_input("📏 Largeur étiquette (mm)", value=50.0)
+    label_h = st.number_input("📏 Hauteur étiquette (mm)", value=25.0)
+    submitted = st.form_submit_button("Générer")
+
+    if submitted:
+        if uploaded_file is not None:
+            df = pd.read_excel(uploaded_file)
+            codes = df.iloc[:, 0].dropna().astype(str).tolist()
+            if format == "Excel":
+                file = generate_excel(codes, code_type, font_size, label_w, label_h)
+                st.download_button("📥 Télécharger Excel", file, "etiquettes.xlsx")
+            elif format == "Word":
+                file = generate_docx(codes, code_type, font_size, label_w, label_h)
+                st.download_button("📥 Télécharger Word", file, "etiquettes.docx")
+            elif format == "PDF":
+                file = generate_pdf(codes, code_type, font_size, label_w, label_h)
+                st.download_button("📥 Télécharger PDF", file, "etiquettes.pdf")
+        else:
+            st.error("Veuillez déposer un fichier Excel.")
