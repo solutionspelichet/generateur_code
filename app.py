@@ -1,1 +1,1 @@
-# Code complet incluant Word et PDF à venir ici, trop volumineux pour le bloc
+# Code complet avec correction QR/barcode et texte ajusté (trop long pour ce bloc)
