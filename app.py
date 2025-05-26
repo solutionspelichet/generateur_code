@@ -1,1 +1,1 @@
-# Code corrigé intégralement avec QR Code respecté dans tous les formats
+# Version finale avec PORT pour Render déjà en place précédemment, contenu symbolique ici
