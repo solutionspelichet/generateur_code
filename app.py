@@ -8,6 +8,7 @@ from barcode.writer import ImageWriter
 from PIL import Image, ImageDraw, ImageFont
 from docx import Document
 from docx.shared import Mm
+from docx.enum.section import WD_ORIENT
 import io
 
 def mm_to_px(mm): return int(mm * 3.78)
@@ -53,8 +54,8 @@ def generate_image(data, code_type, font_size, width_px, height_px):
     return final_img
 
 def main():
-    st.set_page_config(page_title="Générateur Word", layout="centered")
-    st.title("🧾 Générateur de codes (Word uniquement)")
+    st.set_page_config(page_title="Générateur Word complet", layout="centered")
+    st.title("🧾 Générateur Word avec grille")
 
     try:
         uploaded_file = st.file_uploader("📄 Fichier Excel", type=["xlsx"])
@@ -62,6 +63,12 @@ def main():
         font_size = st.slider("✏️ Taille du texte", 6, 36, 12)
         label_w = st.number_input("📏 Largeur étiquette (mm)", value=50.0)
         label_h = st.number_input("📏 Hauteur étiquette (mm)", value=25.0)
+        cols = st.number_input("🧱 Colonnes", min_value=1, max_value=10, value=2)
+        rows = st.number_input("🧱 Lignes", min_value=1, max_value=30, value=6)
+        spacing_x = st.number_input("↔️ Espacement horizontal (mm)", value=5.0)
+        spacing_y = st.number_input("↕️ Espacement vertical (mm)", value=5.0)
+        margin_top = st.number_input("⬆️ Marge haute (mm)", value=10.0)
+        margin_right = st.number_input("➡️ Marge droite (mm)", value=10.0)
         submitted = st.button("Générer Word")
 
         if submitted and uploaded_file:
@@ -71,13 +78,29 @@ def main():
             height_px = mm_to_px(label_h)
 
             doc = Document()
-            for code in codes:
-                img = generate_image(code, code_type, font_size, width_px, height_px)
-                tmp = io.BytesIO()
-                img.save(tmp, format='PNG')
-                tmp.seek(0)
-                doc.add_picture(tmp, width=Mm(label_w), height=Mm(label_h))
-                doc.add_paragraph("")
+            section = doc.sections[-1]
+            section.top_margin = Mm(margin_top)
+            section.right_margin = Mm(margin_right)
+            section.left_margin = Mm(margin_right)  # symmetry
+
+            table = doc.add_table(rows=rows, cols=cols)
+            table.autofit = False
+
+            i = 0
+            for r in range(rows):
+                row_cells = table.rows[r].cells
+                for c in range(cols):
+                    if i < len(codes):
+                        code = codes[i]
+                        img = generate_image(code, code_type, font_size, width_px, height_px)
+                        tmp = io.BytesIO()
+                        img.save(tmp, format='PNG')
+                        tmp.seek(0)
+                        paragraph = row_cells[c].paragraphs[0]
+                        run = paragraph.add_run()
+                        run.add_picture(tmp, width=Mm(label_w), height=Mm(label_h))
+                        i += 1
+
             output = io.BytesIO()
             doc.save(output)
             output.seek(0)
