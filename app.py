@@ -1,2 +1,1 @@
-# app.py complet avec PDF, Word et maintenant Excel
-# Tous les paramètres fonctionnels y sont intégrés
+# Code complet à injecter ici avec Word, PDF, Excel et sécurité d'affichage
