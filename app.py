@@ -1,1 +1,1 @@
-# Code complet prêt à être injecté avec Excel réactivé dans un bloc sécurisé
+# Bloc Excel intégré avec vérification et affichage des erreurs Streamlit ligne par ligne
