@@ -1,1 +1,1 @@
-# Bloc Excel intégré avec vérification et affichage des erreurs Streamlit ligne par ligne
+# Code avec Excel encapsulé : imports internes + st.error + interface garantie
