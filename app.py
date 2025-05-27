@@ -68,6 +68,9 @@ def main():
     st.markdown("<h1 style='text-align: center; color: #f26522; font-family: Trebuchet MS;'>Générateur de codes-barres et QR codes</h1>", unsafe_allow_html=True)
     st.markdown("---")
 
+    output = None
+    filename = ""
+
     with st.form("formulaire"):
         uploaded_file = st.file_uploader("📄 Fichier Excel", type=["xlsx"])
         format = st.selectbox("📂 Format de sortie", ["PDF", "Word", "Excel"])
@@ -77,65 +80,65 @@ def main():
         label_h = st.number_input("📏 Hauteur étiquette (mm)", value=25.0)
         submitted = st.form_submit_button("Générer")
 
-        if submitted and uploaded_file:
-            df = pd.read_excel(uploaded_file)
-            codes = df.iloc[:, 0].dropna().astype(str).tolist()
-            width_px = mm_to_px(label_w)
-            height_px = mm_to_px(label_h)
+    if submitted and uploaded_file:
+        df = pd.read_excel(uploaded_file)
+        codes = df.iloc[:, 0].dropna().astype(str).tolist()
+        width_px = mm_to_px(label_w)
+        height_px = mm_to_px(label_h)
 
-            if format == "Excel":
-                wb = Workbook()
-                ws = wb.active
-                col_letter = get_column_letter(1)
-                ws.column_dimensions[col_letter].width = mm_to_excel_width(label_w)
-                for i, code in enumerate(codes, start=1):
-                    img = generate_image(code, code_type, font_size, width_px, height_px)
-                    tmp = io.BytesIO()
-                    img.save(tmp, format='PNG')
-                    tmp.seek(0)
-                    xl_img = XLImage(tmp)
-                    ws.row_dimensions[i].height = mm_to_pt(label_h)
-                    ws.add_image(xl_img, f"A{i}")
-                output = io.BytesIO()
-                wb.save(output)
-                output.seek(0)
-                st.download_button("📥 Télécharger Excel", output, "etiquettes.xlsx")
+        if format == "Excel":
+            wb = Workbook()
+            ws = wb.active
+            col_letter = get_column_letter(1)
+            ws.column_dimensions[col_letter].width = mm_to_excel_width(label_w)
+            for i, code in enumerate(codes, start=1):
+                img = generate_image(code, code_type, font_size, width_px, height_px)
+                tmp = io.BytesIO()
+                img.save(tmp, format='PNG')
+                tmp.seek(0)
+                xl_img = XLImage(tmp)
+                ws.row_dimensions[i].height = mm_to_pt(label_h)
+                ws.add_image(xl_img, f"A{i}")
+            output = io.BytesIO()
+            wb.save(output)
+            output.seek(0)
+            filename = "etiquettes.xlsx"
 
-            elif format == "Word":
-                doc = Document()
-                for code in codes:
-                    img = generate_image(code, code_type, font_size, width_px, height_px)
-                    tmp = io.BytesIO()
-                    img.save(tmp, format='PNG')
-                    tmp.seek(0)
-                    doc.add_picture(tmp, width=Mm(label_w), height=Mm(label_h))
-                    doc.add_paragraph("")
-                output = io.BytesIO()
-                doc.save(output)
-                output.seek(0)
-                st.download_button("📥 Télécharger Word", output, "etiquettes.docx")
+        elif format == "Word":
+            doc = Document()
+            for code in codes:
+                img = generate_image(code, code_type, font_size, width_px, height_px)
+                tmp = io.BytesIO()
+                img.save(tmp, format='PNG')
+                tmp.seek(0)
+                doc.add_picture(tmp, width=Mm(label_w), height=Mm(label_h))
+                doc.add_paragraph("")
+            output = io.BytesIO()
+            doc.save(output)
+            output.seek(0)
+            filename = "etiquettes.docx"
 
-            elif format == "PDF":
-                output = io.BytesIO()
-                c = canvas.Canvas(output, pagesize=A4)
-                page_width, page_height = A4
-                x, y = 40, page_height - 100
-                for code in codes:
-                    img = generate_image(code, code_type, font_size, width_px, height_px)
-                    tmp = io.BytesIO()
-                    img.save(tmp, format='PNG')
-                    tmp.seek(0)
-                    c.drawImage(tmp, x, y, width=mm_to_pt(label_w), height=mm_to_pt(label_h))
-                    y -= mm_to_pt(label_h) + 10
-                    if y < 100:
-                        c.showPage()
-                        y = page_height - 100
-                c.save()
-                output.seek(0)
-                st.download_button("📥 Télécharger PDF", output, "etiquettes.pdf")
+        elif format == "PDF":
+            output = io.BytesIO()
+            c = canvas.Canvas(output, pagesize=A4)
+            page_width, page_height = A4
+            x, y = 40, page_height - 100
+            for code in codes:
+                img = generate_image(code, code_type, font_size, width_px, height_px)
+                tmp = io.BytesIO()
+                img.save(tmp, format='PNG')
+                tmp.seek(0)
+                c.drawImage(tmp, x, y, width=mm_to_pt(label_w), height=mm_to_pt(label_h))
+                y -= mm_to_pt(label_h) + 10
+                if y < 100:
+                    c.showPage()
+                    y = page_height - 100
+            c.save()
+            output.seek(0)
+            filename = "etiquettes.pdf"
 
-        elif submitted:
-            st.error("❌ Merci de déposer un fichier Excel.")
+    if output:
+        st.download_button("📥 Télécharger", output, filename)
 
 if __name__ == "__main__":
     main()
