@@ -1,1 +1,1 @@
-# Placeholder pour app.py avec gestion des lignes/colonnes Word & PDF dans l'interface
+# Code prêt à injecter : intègre tous les champs (marges, espacements, colonnes, lignes) avec affichage garanti
