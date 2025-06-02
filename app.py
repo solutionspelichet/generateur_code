@@ -1,1 +1,1 @@
-# Version PDF avec image temporaire prête à l'emploi
+# Version PDF compatible Render 100% stabilisée avec ImageReader.
