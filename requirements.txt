@@ -1,8 +1,8 @@
 streamlit
 pandas
+pillow
+python-docx
+openpyxl
 qrcode
 python-barcode
-Pillow
-openpyxl
-python-docx
-reportlab
+fpdf2
