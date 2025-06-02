@@ -1,1 +1,1 @@
-# Version PDF compatible Render 100% stabilisée avec ImageReader.
+# Version ultra stable PDF Render-compatible via fpdf2
